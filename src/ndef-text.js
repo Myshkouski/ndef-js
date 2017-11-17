@@ -1,8 +1,3 @@
-import {
-  bytesToString,
-  stringToBytes
-} from './ndef-util'
-
 /**
   * decode text bytes from ndef record payload
   *
@@ -16,7 +11,7 @@ export const decode = data => {
     // TODO need to deal with UTF in the future
     // console.log("lang " + languageCode + (utf16 ? " utf16" : " utf8"))
 
-    return bytesToString(data.slice(languageCodeLength + 1))
+    return Buffer.from(data.slice(languageCodeLength + 1)).toString()
 }
 
 /**
@@ -26,10 +21,11 @@ export const decode = data => {
   */
 export const encode = (text, lang, encoding) => {
     // ISO/IANA language code, but we're not enforcing
-    if (!lang) { lang = 'en' }
+    if (!lang) {
+      lang = 'en'
+    }
 
-    var encoded = stringToBytes(lang + text)
-    encoded.unshift(lang.length)
+    var encoded = Buffer.from([lang.length, ...Array.prototype.slice.call(Buffer.from(lang + text), 0)])
 
     return encoded
 }

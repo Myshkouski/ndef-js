@@ -21,40 +21,6 @@ var data = { TNF_EMPTY: 0,
   TLV_START: 64,
   TL_LENGTH: 4 };
 
-var TNF_EMPTY = data.TNF_EMPTY;
-var TNF_WELL_KNOWN = data.TNF_WELL_KNOWN;
-var TNF_MIME_MEDIA = data.TNF_MIME_MEDIA;
-var TNF_ABSOLUTE_URI = data.TNF_ABSOLUTE_URI;
-var TNF_EXTERNAL_TYPE = data.TNF_EXTERNAL_TYPE;
-var TNF_UNKNOWN = data.TNF_UNKNOWN;
-var TNF_UNCHANGED = data.TNF_UNCHANGED;
-var TNF_RESERVED = data.TNF_RESERVED;
-var RTD_TEXT = data.RTD_TEXT;
-var RTD_URI = data.RTD_URI;
-var RTD_SMART_POSTER = data.RTD_SMART_POSTER;
-
-// ndef-util.js
-// Copyright 2013 Don Coleman
-//
-
-// This is from phonegap-nfc.js and is a combination of helpers in nfc and util
-// https://github.com/chariotsolutions/phonegap-nfc/blob/master/www/phonegap-nfc.js
-
-function stringToBytes(string) {
-    var bytes = Buffer(string).toJSON();
-    if (bytes.hasOwnProperty('data')) {
-        // Node 0.12.x
-        return bytes.data;
-    } else {
-        // Node 0.10.x
-        return bytes;
-    }
-}
-
-function bytesToString(bytes) {
-    return Buffer(bytes).toString();
-}
-
 /**
   * decode text bytes from ndef record payload
   *
@@ -68,7 +34,7 @@ var decode = function decode(data) {
   // TODO need to deal with UTF in the future
   // console.log("lang " + languageCode + (utf16 ? " utf16" : " utf8"))
 
-  return bytesToString(data.slice(languageCodeLength + 1));
+  return Buffer.from(data.slice(languageCodeLength + 1)).toString();
 };
 
 /**
@@ -82,8 +48,7 @@ var encode = function encode(text, lang, encoding) {
     lang = 'en';
   }
 
-  var encoded = stringToBytes(lang + text);
-  encoded.unshift(lang.length);
+  var encoded = Buffer.from([lang.length].concat(Array.prototype.slice.call(Buffer.from(lang + text), 0)));
 
   return encoded;
 };
@@ -96,12 +61,12 @@ var protocols = ["", "http://www.", "https://www.", "http://", "https://", "tel:
   * @returns a string
   */
 var decode$1 = function decode(data) {
-  var prefix = protocols[data[0]];
-  if (!prefix) {
-    // 36 to 255 should be ""
-    prefix = "";
-  }
-  return prefix + bytesToString(data.slice(1));
+    var prefix = protocols[data[0]];
+    if (!prefix) {
+        // 36 to 255 should be ""
+        prefix = "";
+    }
+    return prefix + Buffer.from(data.slice(1)).toString();
 };
 
 /**
@@ -110,27 +75,25 @@ var decode$1 = function decode(data) {
   * @returns an array of bytes
   */
 var encode$1 = function encode(uri) {
-  var prefix, protocolCode, encoded;
+    var prefix, protocolCode, encoded;
 
-  // check each protocol, unless we've found a match
-  // "urn:" is the one exception where we need to keep checking
-  // slice so we don't check ""
-  protocols.slice(1).forEach(function (protocol) {
-    if ((!prefix || prefix === "urn:") && uri.indexOf(protocol) === 0) {
-      prefix = protocol;
+    // check each protocol, unless we've found a match
+    // "urn:" is the one exception where we need to keep checking
+    // slice so we don't check ""
+    protocols.slice(1).forEach(function (protocol) {
+        if ((!prefix || prefix === "urn:") && uri.indexOf(protocol) === 0) {
+            prefix = protocol;
+        }
+    });
+
+    if (!prefix) {
+        prefix = "";
     }
-  });
 
-  if (!prefix) {
-    prefix = "";
-  }
+    protocolCode = protocols.indexOf(prefix);
+    encoded = Buffer.from([protocolCode].concat(Array.prototype.slice.call(Buffer.from(uri.slice(prefix.length)), 0)));
 
-  encoded = stringToBytes(uri.slice(prefix.length));
-  protocolCode = protocols.indexOf(prefix);
-  // prepend protocol code
-  encoded.unshift(protocolCode);
-
-  return encoded;
+    return encoded;
 };
 
 // ndef.js
@@ -141,10 +104,15 @@ var encode$1 = function encode(uri) {
 // see android.nfc.NdefRecord for documentation about constants
 // http://developer.android.com/reference/android/nfc/NdefRecord.html
 
+// convert bytes to a String
+var s = function s(bytes) {
+  return Buffer.from(bytes).toString();
+};
+
 /**
  * Creates a JSON representation of a NDEF Record.
  *
- * @tnf 3-bit TNF (Type Name Format) - use one of the TNF_* constants
+ * @tnf 3-bit TNF (Type Name Format) - use one of the constants.TNF_* constants
  * @type byte array, containing zero to 255 bytes, must not be null
  * @id byte array, containing zero to 255 bytes, must not be null
  * @payload byte array, containing zero to (2 ** 32 - 1) bytes, must not be null
@@ -154,13 +122,8 @@ var encode$1 = function encode(uri) {
  * @see Ndef.textRecord, Ndef.uriRecord and Ndef.mimeMediaRecord for examples
  */
 
-// convert bytes to a String
-var s = function s(bytes) {
-  return new Buffer(bytes).toString();
-};
-
 var record = function record() {
-  var tnf = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : TNF_EMPTY;
+  var tnf = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : data.TNF_EMPTY;
   var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
   var id = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
   var payload = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : [];
@@ -168,25 +131,25 @@ var record = function record() {
 
   // store type as String so it's easier to compare
   if (type instanceof Array) {
-    type = bytesToString(type);
+    type = Buffer.from(type).toString();
   }
 
   // in the future, id could be a String
   if (!(id instanceof Array)) {
-    id = stringToBytes(id);
+    id = Buffer.from(id);
   }
 
   // Payload must be binary
   if (!(payload instanceof Array)) {
-    payload = stringToBytes(payload);
+    payload = Buffer.from(payload);
   }
 
   // Experimental feature
   // Convert payload to text for Text and URI records
-  if (tnf == TNF_WELL_KNOWN) {
-    if (type == RTD_TEXT) {
+  if (tnf == data.TNF_WELL_KNOWN) {
+    if (type == data.RTD_TEXT) {
       value = decode(payload);
-    } else if (type == RTD_URI) {
+    } else if (type == data.RTD_URI) {
       value = decode$1(payload);
     }
   }
@@ -209,7 +172,7 @@ var record = function record() {
  */
 var textRecord = function textRecord(text, languageCode) {
   var id = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  return record(TNF_WELL_KNOWN, RTD_TEXT, id, encode(text, languageCode));
+  return record(data.TNF_WELL_KNOWN, data.RTD_TEXT, id, encode(text, languageCode));
 };
 
 /**
@@ -220,7 +183,7 @@ var textRecord = function textRecord(text, languageCode) {
  */
 var uriRecord = function uriRecord(uri) {
   var id = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
-  return record(TNF_WELL_KNOWN, RTD_URI, id, encode$1(uri));
+  return record(data.TNF_WELL_KNOWN, data.RTD_URI, id, encode$1(uri));
 };
 
 /**
@@ -249,7 +212,7 @@ var uriRecord = function uriRecord(uri) {
 var absoluteUriRecord = function absoluteUriRecord(uri) {
   var payload = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
   var id = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  return record(TNF_ABSOLUTE_URI, uri, id, payload);
+  return record(data.TNF_ABSOLUTE_URI, uri, id, payload);
 };
 
 /**
@@ -262,7 +225,7 @@ var absoluteUriRecord = function absoluteUriRecord(uri) {
 var mimeMediaRecord = function mimeMediaRecord(mimeType) {
   var payload = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
   var id = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  return record(TNF_MIME_MEDIA, mimeType, id, payload);
+  return record(data.TNF_MIME_MEDIA, mimeType, id, payload);
 };
 
 /**
@@ -283,10 +246,11 @@ var smartPoster = function smartPoster(ndefRecords, id, payload) {
       payload = ndefRecords;
     }
   } else {
-    console.warn("WARNING: Expecting an array of NDEF records");
+    //console.warn("WARNING: Expecting an array of NDEF records")
+    throw new Error('Expecting an array of NDEF records');
   }
 
-  return record(TNF_WELL_KNOWN, RTD_SMART_POSTER, id, payload);
+  return record(data.TNF_WELL_KNOWN, data.RTD_SMART_POSTER, id, payload);
 };
 
 /**
@@ -294,7 +258,7 @@ var smartPoster = function smartPoster(ndefRecords, id, payload) {
 *
 */
 var emptyRecord = function emptyRecord() {
-  return record(TNF_EMPTY, [], [], []);
+  return record(data.TNF_EMPTY, [], [], []);
 };
 
 /**
@@ -303,7 +267,7 @@ var emptyRecord = function emptyRecord() {
 *
 */
 var androidApplicationRecord = function androidApplicationRecord(packageName) {
-  return record(TNF_EXTERNAL_TYPE, 'android.com:pkg', [], packageName);
+  return record(data.TNF_EXTERNAL_TYPE, 'android.com:pkg', [], packageName);
 };
 
 /**
@@ -340,7 +304,7 @@ var encodeMessage = function encodeMessage(ndefRecords) {
     encoded.push(tnf_byte);
 
     // type is stored as String, converting to bytes for storage
-    record_type = stringToBytes(ndefRecords[i].type);
+    record_type = Array.prototype.slice.call(Buffer.from(ndefRecords[i].type), 0);
     encoded.push(record_type.length);
 
     if (sr) {
@@ -366,7 +330,7 @@ var encodeMessage = function encodeMessage(ndefRecords) {
       encoded = encoded.concat(ndefRecords[i].id);
     }
 
-    encoded = encoded.concat(ndefRecords[i].payload);
+    encoded = encoded.concat(Array.prototype.slice.call(ndefRecords[i].payload, 0));
   }
 
   return encoded;
@@ -417,7 +381,10 @@ var decodeMessage = function decodeMessage(_bytes) {
 
     ndef_message.push(record(header.tnf, record_type, id, payload));
 
-    if (header.me) break; // last message
+    if (header.me) {
+      // last message
+      break;
+    }
   }
 
   return ndef_message;
@@ -480,154 +447,156 @@ var isType = function isType(record, tnf, type) {
   return record.tnf === tnf ? s(record) === s(type) : false;
 };
 
-var tnfToString = function tnfToString(tnf) {
-  var value = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : tnf;
-
-  if (tnf == TNF_EMPTY) {
-    value = "Empty";
-  } else if (TNF_WELL_KNOWN) {
-    value = "Well Known";
-  } else if (TNF_MIME_MEDIA) {
-    value = "Mime Media";
-  } else if (TNF_ABSOLUTE_URI) {
-    value = "Absolute URI";
-  } else if (TNF_EXTERNAL_TYPE) {
-    value = "External";
-  } else if (TNF_UNKNOWN) {
-    value = "Unknown";
-  } else if (TNF_UNCHANGED) {
-    value = "Unchanged";
-  } else if (TNF_RESERVED) {
-    value = "Reserved";
-  }
-  return value;
-};
+// export const tnfToString = (tnf, value = tnf) => {
+//   if(tnf == constants.TNF_EMPTY) {
+//     value = "Empty"
+//   }
+//   else if(constants.TNF_WELL_KNOWN) {
+//     value = "Well Known"
+//   }
+//   else if(constants.TNF_MIME_MEDIA) {
+//     value = "Mime Media"
+//   }
+//   else if(constants.TNF_ABSOLUTE_URI) {
+//     value = "Absolute URI"
+//   }
+//   else if(constants.TNF_EXTERNAL_TYPE) {
+//     value = "External"
+//   }
+//   else if(constants.TNF_UNKNOWN) {
+//     value = "Unknown"
+//   }
+//   else if(constants.TNF_UNCHANGED) {
+//     value = "Unchanged"
+//   }
+//   else if(constants.TNF_RESERVED) {
+//     value = "Reserved"
+//   }
+//   return value
+// }
 
 // Convert NDEF records and messages to strings
 // This works OK for demos, but real code proably needs
 // a custom implementation. It would be nice to make
 // smarter record objects that can print themselves
-var stringifier = {
-  stringify: function stringify(data, separator) {
-    if (Array.isArray(data)) {
-      if (typeof data[0] === 'number') {
-        // guessing this message bytes
-        data = decodeMessage(data);
-      }
+// var stringifier = {
+//     stringify: function (data, separator) {
+//       if (Array.isArray(data)) {
+//         if (typeof data[0] === 'number') {
+//           // guessing this message bytes
+//           data = decodeMessage(data)
+//         }
+//
+//         return stringifier.printRecords(data, separator)
+//       } else {
+//         return stringifier.printRecord(data, separator)
+//       }
+//     },
+//
+//     // @message - NDEF Message (array of NDEF Records)
+//     // @separator - line separator, optional, defaults to \n
+//     // @returns string with NDEF Message
+//     printRecords: function (message, separator) {
+//
+//         if(!separator) { separator = "\n" }
+//         result = ""
+//
+//         // Print out the payload for each record
+//         message.forEach(function(record) {
+//             result += stringifier.printRecord(record, separator)
+//             result += separator
+//         })
+//
+//         return result.slice(0, (-1 * separator.length))
+//     },
+//
+//     // @record - NDEF Record
+//     // @separator - line separator, optional, defaults to \n
+//     // @returns string with NDEF Record
+//     printRecord: function (record, separator) {
+//
+//         var result = ""
+//
+//         if(!separator) { separator = "\n" }
+//
+//         switch(record.tnf) {
+//             case ndef.constants.TNF_EMPTY:
+//                 result += "Empty Record"
+//                 result += separator
+//                 break
+//             case ndef.constants.TNF_WELL_KNOWN:
+//                 result += stringifier.printWellKnown(record, separator)
+//                 break
+//             case ndef.constants.TNF_MIME_MEDIA:
+//                 result += "MIME Media"
+//                 result += separator
+//                 result += s(record.type)
+//                 result += separator
+//                 result += s(record.payload) // might be binary
+//                 break
+//             case ndef.constants.TNF_ABSOLUTE_URI:
+//                 result += "Absolute URI"
+//                 result += separator
+//                 result += s(record.type)    // the URI is the type
+//                 result += separator
+//                 result += s(record.payload) // might be binary
+//                 break
+//             case ndef.constants.TNF_EXTERNAL_TYPE:
+//                 // AAR contains strings, other types could
+//                 // contain binary data
+//                 result += "External"
+//                 result += separator
+//                 result += s(record.type)
+//                 result += separator
+//                 result += s(record.payload)
+//                 break
+//             default:
+//                 result += s("Can't process TNF " + record.tnf)
+//         }
+//
+//         result += separator
+//         return result
+//     },
+//
+//     printWellKnown: function (record, separator) {
+//
+//         var result = ""
+//
+//         if (record.tnf !== ndef.constants.TNF_WELL_KNOWN) {
+//             return "ERROR expecting TNF Well Known"
+//         }
+//
+//         switch(record.type) {
+//             case ndef.constants.RTD_TEXT:
+//                 result += "Text Record"
+//                 result += separator
+//                 result += (ndef.text.decodePayload(record.payload))
+//                 break
+//             case ndef.constants.RTD_URI:
+//                 result += "URI Record"
+//                 result += separator
+//                 result += (ndef.uri.decodePayload(record.payload))
+//                 break
+//             case ndef.constants.RTD_SMART_POSTER:
+//                 result += "Smart Poster"
+//                 result += separator
+//                 // the payload of a smartposter is a NDEF message
+//                 result += stringifier.printRecords(ndef.decodeMessage(record.payload))
+//                 break
+//             default:
+//                 // attempt to display other types
+//                 result += record.type + " Record"
+//                 result += separator
+//                 result += s(record.payload)
+//         }
+//
+//         return result
+//     }
+// }
+//
+// export const stringify = { stringifier }
 
-      return stringifier.printRecords(data, separator);
-    } else {
-      return stringifier.printRecord(data, separator);
-    }
-  },
-
-  // @message - NDEF Message (array of NDEF Records)
-  // @separator - line separator, optional, defaults to \n
-  // @returns string with NDEF Message
-  printRecords: function printRecords(message, separator) {
-
-    if (!separator) {
-      separator = "\n";
-    }
-    result = "";
-
-    // Print out the payload for each record
-    message.forEach(function (record) {
-      result += stringifier.printRecord(record, separator);
-      result += separator;
-    });
-
-    return result.slice(0, -1 * separator.length);
-  },
-
-  // @record - NDEF Record
-  // @separator - line separator, optional, defaults to \n
-  // @returns string with NDEF Record
-  printRecord: function printRecord(record, separator) {
-
-    var result = "";
-
-    if (!separator) {
-      separator = "\n";
-    }
-
-    switch (record.tnf) {
-      case ndef.TNF_EMPTY:
-        result += "Empty Record";
-        result += separator;
-        break;
-      case ndef.TNF_WELL_KNOWN:
-        result += stringifier.printWellKnown(record, separator);
-        break;
-      case ndef.TNF_MIME_MEDIA:
-        result += "MIME Media";
-        result += separator;
-        result += s(record.type);
-        result += separator;
-        result += s(record.payload); // might be binary
-        break;
-      case ndef.TNF_ABSOLUTE_URI:
-        result += "Absolute URI";
-        result += separator;
-        result += s(record.type); // the URI is the type
-        result += separator;
-        result += s(record.payload); // might be binary
-        break;
-      case ndef.TNF_EXTERNAL_TYPE:
-        // AAR contains strings, other types could
-        // contain binary data
-        result += "External";
-        result += separator;
-        result += s(record.type);
-        result += separator;
-        result += s(record.payload);
-        break;
-      default:
-        result += s("Can't process TNF " + record.tnf);
-    }
-
-    result += separator;
-    return result;
-  },
-
-  printWellKnown: function printWellKnown(record, separator) {
-
-    var result = "";
-
-    if (record.tnf !== ndef.TNF_WELL_KNOWN) {
-      return "ERROR expecting TNF Well Known";
-    }
-
-    switch (record.type) {
-      case ndef.RTD_TEXT:
-        result += "Text Record";
-        result += separator;
-        result += ndef.text.decodePayload(record.payload);
-        break;
-      case ndef.RTD_URI:
-        result += "URI Record";
-        result += separator;
-        result += ndef.uri.decodePayload(record.payload);
-        break;
-      case ndef.RTD_SMART_POSTER:
-        result += "Smart Poster";
-        result += separator;
-        // the payload of a smartposter is a NDEF message
-        result += stringifier.printRecords(ndef.decodeMessage(record.payload));
-        break;
-      default:
-        // attempt to display other types
-        result += record.type + " Record";
-        result += separator;
-        result += s(record.payload);
-    }
-
-    return result;
-  }
-};
-
-var stringify = { stringifier: stringifier };
-
+exports.constants = data;
 exports.record = record;
 exports.textRecord = textRecord;
 exports.uriRecord = uriRecord;
@@ -641,5 +610,3 @@ exports.decodeMessage = decodeMessage;
 exports.decodeTnf = decodeTnf;
 exports.encodeTnf = encodeTnf;
 exports.isType = isType;
-exports.tnfToString = tnfToString;
-exports.stringify = stringify;

@@ -1,4 +1,5 @@
 import path from 'path'
+import merge from 'lodash.merge'
 import babel from 'rollup-plugin-babel'
 import resolve from 'rollup-plugin-node-resolve'
 import commonjs from 'rollup-plugin-commonjs'
@@ -16,7 +17,6 @@ const bundles = []
 bundles.push({
   input: path.resolve(__src, 'ndef.js'),
   output: {
-    sourcemap: true,
     file: path.resolve(__dist, 'index.js'),
     format: 'cjs'
   },
@@ -66,7 +66,11 @@ bundles.push({
 })
 
 // minified
-bundles.push(Object.assign({}, bundles[0], {
+bundles.push(merge({}, bundles[0], {
+  output: {
+    sourcemap: true,
+    file: path.resolve(__dist, 'index.min.js')
+  },
   plugins: Array.from(bundles[0]).concat([
     uglify({
       sourceMap: true,
