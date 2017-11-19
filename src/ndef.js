@@ -37,7 +37,19 @@ const s = bytes =>
  * @see Ndef.textRecord, Ndef.uriRecord and Ndef.mimeMediaRecord for examples
  */
 
-export const record = (tnf = constants.TNF_EMPTY, type = [], id = [], payload = [], value) => {
+export const record = (tnf, type, id, payload, value) => {
+  if(!tnf) {
+    tnf = constants.TNF_EMPTY
+  }
+  if(!type) {
+    type = []
+  }
+  if(!id) {
+    id = []
+  }
+  if(!payload) {
+    payload = []
+  }
   // store type as String so it's easier to compare
   if(type instanceof Array) {
     type = Buffer.from(type).toString()
@@ -80,8 +92,8 @@ export const record = (tnf = constants.TNF_EMPTY, type = [], id = [], payload = 
  * @languageCode ISO/IANA language code. Examples: “fi”, “en-US”, “fr-CA”, “jp”. (optional)
  * @id byte[] (optional)
  */
-export const textRecord = (text, languageCode, id = []) =>
-  record(constants.TNF_WELL_KNOWN, constants.RTD_TEXT, id, encodeTextPayload(text, languageCode))
+export const textRecord = (text, languageCode, id) =>
+  record(constants.TNF_WELL_KNOWN, constants.RTD_TEXT, id || [], encodeTextPayload(text, languageCode))
 
 /**
  * Helper that creates a NDEF record containing a URI.
@@ -89,8 +101,8 @@ export const textRecord = (text, languageCode, id = []) =>
  * @uri String
  * @id byte[] (optional)
  */
-export const uriRecord = (uri, id = []) =>
-  record(constants.TNF_WELL_KNOWN, constants.RTD_URI, id, encodeUriPayload(uri))
+export const uriRecord = (uri, id) =>
+  record(constants.TNF_WELL_KNOWN, constants.RTD_URI, id || [], encodeUriPayload(uri))
 
 /**
  * Helper that creates a NDEF record containing an absolute URI.
@@ -115,8 +127,8 @@ export const uriRecord = (uri, id = []) =>
  * @payload byte[] or String
  * @id byte[] (optional)
  */
-export const absoluteUriRecord = (uri, payload = [], id = []) =>
-  record(constants.TNF_ABSOLUTE_URI, uri, id, payload)
+export const absoluteUriRecord = (uri, payload, id) =>
+  record(constants.TNF_ABSOLUTE_URI, uri, id || [], payload || [])
 
 /**
 * Helper that creates a NDEF record containing an mimeMediaRecord.
@@ -125,8 +137,8 @@ export const absoluteUriRecord = (uri, payload = [], id = []) =>
 * @payload byte[]
 * @id byte[] (optional)
 */
-export const mimeMediaRecord = (mimeType, payload = [], id = []) =>
-  record(constants.TNF_MIME_MEDIA, mimeType, id, payload)
+export const mimeMediaRecord = (mimeType, payload, id) =>
+  record(constants.TNF_MIME_MEDIA, mimeType, id || [], payload || [])
 
 /**
 * Helper that creates an NDEF record containing an Smart Poster.
@@ -134,8 +146,8 @@ export const mimeMediaRecord = (mimeType, payload = [], id = []) =>
 * @ndefRecords array of NDEF Records
 * @id byte[] (optional)
 */
-export const smartPoster = (ndefRecords, id, payload) => {
-  payload = []
+export const smartPoster = (ndefRecords, id) => {
+  let payload = []
 
   if (ndefRecords) {
     // make sure we have an array of something like NDEF records before encoding
@@ -295,7 +307,7 @@ export const decodeMessage = _bytes => {
 *
 *  See NFC Data Exchange Format (NDEF) Specification Section 3.2 RecordLayout
 */
-export const decodeTnf = (tnf_byte) => {
+export const decodeTnf = tnf_byte => {
   return {
     mb: (tnf_byte & 0x80) !== 0,
     me: (tnf_byte & 0x40) !== 0,
@@ -313,7 +325,11 @@ export const decodeTnf = (tnf_byte) => {
 *
 *  See NFC Data Exchange Format (NDEF) Specification Section 3.2 RecordLayout
 */
-export const encodeTnf = (mb, me, cf, sr, il, tnf, value = tnf) => {
+export const encodeTnf = (mb, me, cf, sr, il, tnf, value) => {
+  if(!value) {
+    value = tnf
+  }
+
   if (mb) {
     value = value | 0x80
   }
