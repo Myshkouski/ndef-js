@@ -25,7 +25,7 @@ export const encode = (text, lang, encoding) => {
       lang = 'en'
     }
 
-    var encoded = Buffer.from([lang.length, ...Array.prototype.slice.call(Buffer.from(lang + text), 0)])
+    var encoded = Buffer.from([lang.length, ...[].slice.call(Buffer.from(lang + text))])
 
     return encoded
 }

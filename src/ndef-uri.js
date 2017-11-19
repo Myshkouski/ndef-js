@@ -37,7 +37,7 @@ export const encode = uri => {
     }
 
     protocolCode = protocols.indexOf(prefix)
-    encoded = Buffer.from([protocolCode, ...Array.prototype.slice.call(Buffer.from(uri.slice(prefix.length)), 0)])
+    encoded = Buffer.from([protocolCode, ...[].slice.call(Buffer.from(uri.slice(prefix.length)))])
 
     return encoded
 }

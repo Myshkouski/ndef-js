@@ -210,7 +210,7 @@ export const encodeMessage = ndefRecords => {
     encoded.push(tnf_byte)
 
     // type is stored as String, converting to bytes for storage
-    record_type = Array.prototype.slice.call(Buffer.from(ndefRecords[i].type), 0)
+    record_type = [].slice.call(Buffer.from(ndefRecords[i].type))
     encoded.push(record_type.length)
 
     if (sr) {
@@ -236,7 +236,7 @@ export const encodeMessage = ndefRecords => {
       encoded = encoded.concat(ndefRecords[i].id)
     }
 
-    encoded = encoded.concat(Array.prototype.slice.call(ndefRecords[i].payload, 0))
+    encoded = encoded.concat([].slice.call(ndefRecords[i].payload))
   }
 
   return encoded
