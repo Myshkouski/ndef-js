@@ -1,6 +1,6 @@
 {
   "name": "ndef",
-  "version": "0.1.4-beta.2",
+  "version": "0.1.4-beta.3",
   "description": "Library to create and parse NDEF messages.",
   "main": "dist/",
   "directories": {
@@ -27,16 +27,10 @@
   "dependencies": {},
   "devDependencies": {
     "babel-core": "^6.25.0",
-    "babel-plugin-add-module-exports": "^0.2.1",
-    "babel-plugin-external-helpers": "^6.22.0",
-    "babel-plugin-transform-es2015-instanceof": "^6.22.0",
-    "babel-plugin-transform-es2015-modules-commonjs": "^6.24.1",
-    "babel-plugin-transform-helper": "0.0.6",
-    "babel-plugin-transform-object-rest-spread": "^6.23.0",
-    "babel-preset-es2015-rollup": "^3.0.0",
-    "babel-preset-es2015-without-symbol": "^6.14.5",
+    "babel-preset-env": "^1.6.1",
     "lodash.merge": "^4.6.0",
     "mocha": "^4.0.1",
+    "rollup-analyzer-plugin": "^1.1.1",
     "rollup-plugin-babel": "^3.0.2",
     "rollup-plugin-commonjs": "^8.2.0",
     "rollup-plugin-node-resolve": "^3.0.0",

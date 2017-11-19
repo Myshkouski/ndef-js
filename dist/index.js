@@ -27,14 +27,15 @@ var data = { TNF_EMPTY: 0,
   * @returns a string
   */
 var decode = function decode(data) {
-  var languageCodeLength = data[0] & 0x3F,
-      // 6 LSBs
-  languageCode = data.slice(1, 1 + languageCodeLength); // assuming UTF-16BE
+    var languageCodeLength = data[0] & 0x3F,
+        // 6 LSBs
+    languageCode = data.slice(1, 1 + languageCodeLength),
+        utf16 = (data[0] & 0x80) !== 0; // assuming UTF-16BE
 
-  // TODO need to deal with UTF in the future
-  // console.log("lang " + languageCode + (utf16 ? " utf16" : " utf8"))
+    // TODO need to deal with UTF in the future
+    // console.log("lang " + languageCode + (utf16 ? " utf16" : " utf8"))
 
-  return Buffer.from(data.slice(languageCodeLength + 1)).toString();
+    return Buffer.from(data.slice(languageCodeLength + 1)).toString();
 };
 
 /**
@@ -43,14 +44,14 @@ var decode = function decode(data) {
   * @returns an array of bytes
   */
 var encode = function encode(text, lang, encoding) {
-  // ISO/IANA language code, but we're not enforcing
-  if (!lang) {
-    lang = 'en';
-  }
+    // ISO/IANA language code, but we're not enforcing
+    if (!lang) {
+        lang = 'en';
+    }
 
-  var encoded = Buffer.from([lang.length].concat(Array.prototype.slice.call(Buffer.from(lang + text), 0)));
+    var encoded = Buffer.from([lang.length].concat(Array.prototype.slice.call(Buffer.from(lang + text), 0)));
 
-  return encoded;
+    return encoded;
 };
 
 // URI identifier codes from URI Record Type Definition NFCForum-TS-RTD_URI_1.0 2006-07-24
@@ -122,13 +123,19 @@ var s = function s(bytes) {
  * @see Ndef.textRecord, Ndef.uriRecord and Ndef.mimeMediaRecord for examples
  */
 
-var record = function record() {
-  var tnf = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : data.TNF_EMPTY;
-  var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
-  var id = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  var payload = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : [];
-  var value = arguments[4];
-
+var record = function record(tnf, type, id, payload, value) {
+  if (!tnf) {
+    tnf = data.TNF_EMPTY;
+  }
+  if (!type) {
+    type = [];
+  }
+  if (!id) {
+    id = [];
+  }
+  if (!payload) {
+    payload = [];
+  }
   // store type as String so it's easier to compare
   if (type instanceof Array) {
     type = Buffer.from(type).toString();
@@ -170,9 +177,8 @@ var record = function record() {
  * @languageCode ISO/IANA language code. Examples: “fi”, “en-US”, “fr-CA”, “jp”. (optional)
  * @id byte[] (optional)
  */
-var textRecord = function textRecord(text, languageCode) {
-  var id = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  return record(data.TNF_WELL_KNOWN, data.RTD_TEXT, id, encode(text, languageCode));
+var textRecord = function textRecord(text, languageCode, id) {
+  return record(data.TNF_WELL_KNOWN, data.RTD_TEXT, id || [], encode(text, languageCode));
 };
 
 /**
@@ -181,9 +187,8 @@ var textRecord = function textRecord(text, languageCode) {
  * @uri String
  * @id byte[] (optional)
  */
-var uriRecord = function uriRecord(uri) {
-  var id = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
-  return record(data.TNF_WELL_KNOWN, data.RTD_URI, id, encode$1(uri));
+var uriRecord = function uriRecord(uri, id) {
+  return record(data.TNF_WELL_KNOWN, data.RTD_URI, id || [], encode$1(uri));
 };
 
 /**
@@ -209,10 +214,8 @@ var uriRecord = function uriRecord(uri) {
  * @payload byte[] or String
  * @id byte[] (optional)
  */
-var absoluteUriRecord = function absoluteUriRecord(uri) {
-  var payload = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
-  var id = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  return record(data.TNF_ABSOLUTE_URI, uri, id, payload);
+var absoluteUriRecord = function absoluteUriRecord(uri, payload, id) {
+  return record(data.TNF_ABSOLUTE_URI, uri, id || [], payload || []);
 };
 
 /**
@@ -222,10 +225,8 @@ var absoluteUriRecord = function absoluteUriRecord(uri) {
 * @payload byte[]
 * @id byte[] (optional)
 */
-var mimeMediaRecord = function mimeMediaRecord(mimeType) {
-  var payload = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
-  var id = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
-  return record(data.TNF_MIME_MEDIA, mimeType, id, payload);
+var mimeMediaRecord = function mimeMediaRecord(mimeType, payload, id) {
+  return record(data.TNF_MIME_MEDIA, mimeType, id || [], payload || []);
 };
 
 /**
@@ -234,8 +235,8 @@ var mimeMediaRecord = function mimeMediaRecord(mimeType) {
 * @ndefRecords array of NDEF Records
 * @id byte[] (optional)
 */
-var smartPoster = function smartPoster(ndefRecords, id, payload) {
-  payload = [];
+var smartPoster = function smartPoster(ndefRecords, id) {
+  var payload = [];
 
   if (ndefRecords) {
     // make sure we have an array of something like NDEF records before encoding
@@ -415,8 +416,10 @@ var decodeTnf = function decodeTnf(tnf_byte) {
 *
 *  See NFC Data Exchange Format (NDEF) Specification Section 3.2 RecordLayout
 */
-var encodeTnf = function encodeTnf(mb, me, cf, sr, il, tnf) {
-  var value = arguments.length > 6 && arguments[6] !== undefined ? arguments[6] : tnf;
+var encodeTnf = function encodeTnf(mb, me, cf, sr, il, tnf, value) {
+  if (!value) {
+    value = tnf;
+  }
 
   if (mb) {
     value = value | 0x80;
