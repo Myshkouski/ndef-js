@@ -2,7 +2,8 @@
   "name": "ndef",
   "version": "0.1.4-beta.3",
   "description": "Library to create and parse NDEF messages.",
-  "main": "dist/",
+  "main": "dist/index.cjs.js",
+  "module": "dist/index.esm.js",
   "directories": {
     "test": "test"
   },
